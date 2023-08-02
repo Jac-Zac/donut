@@ -52,8 +52,34 @@ def save_config_file(config, path):
         print(f"Config is saved at {save_path}")
 
 
+class ProgressBar(pl.callbacks.TQDMProgressBar):
+    def __init__(self, config):
+        super().__init__()
+        self.enable = True
+        self.config = config
+
+    def disable(self):
+        self.enable = False
+
+    def get_metrics(self, trainer, model):
+        items = super().get_metrics(trainer, model)
+        items.pop("v_num", None)
+        items["exp_name"] = f"{self.config.get('exp_name', '')}"
+        items["exp_version"] = f"{self.config.get('exp_version', '')}"
+        return items
+
+
+def set_seed(seed):
+    pytorch_lightning_version = int(pl.__version__[0])
+    if pytorch_lightning_version < 2:
+        pl.utilities.seed.seed_everything(seed, workers=True)
+    else:
+        import lightning_fabric
+        lightning_fabric.utilities.seed.seed_everything(seed, workers=True)
+
+
 def train(config):
-    pl.utilities.seed.seed_everything(config.get("seed", 42), workers=True)
+    set_seed(config.get("seed", 42))
 
     model_module = DonutModelPLModule(config)
     data_module = DonutDataPLModule(config)
@@ -112,13 +138,12 @@ def train(config):
         mode="min",
     )
 
-    early_stopping_callback = EarlyStopping(monitor='val_metric', patience=30)
+    bar = ProgressBar(config)
 
     custom_ckpt = CustomCheckpointIO()
     trainer = pl.Trainer(
-        resume_from_checkpoint=config.get("resume_from_checkpoint_path", None),
         num_nodes=config.get("num_nodes", 1),
-        gpus=torch.cuda.device_count(),
+        devices=torch.cuda.device_count(),
         strategy="ddp",
         accelerator="gpu",
         plugins=custom_ckpt,
@@ -130,10 +155,10 @@ def train(config):
         precision=16,
         num_sanity_val_steps=0,
         logger=logger,
-        callbacks=[lr_callback, checkpoint_callback, early_stopping_callback],
+        callbacks=[lr_callback, checkpoint_callback, bar],
     )
 
-    trainer.fit(model_module, data_module)
+    trainer.fit(model_module, data_module, ckpt_path=config.get("resume_from_checkpoint_path", None))
 
 
 if __name__ == "__main__":
