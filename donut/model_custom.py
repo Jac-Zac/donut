@@ -494,7 +494,7 @@ class DonutConfig(PretrainedConfig):
 
     def __init__(
         self,
-        input_size: List[int] = [2560, 1920],
+        input_size: List[int] = [1600, 1200],
         align_long_axis: bool = False,
         window_size: int = 10,
         encoder_layer: List[int] = [2, 2, 14, 2],
