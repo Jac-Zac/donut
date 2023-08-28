@@ -583,8 +583,8 @@ class DonutModel(PreTrainedModel):
     def max_bbox_from_heatmap(
         decoder_cross_attentions: torch.Tensor,
         tkn_indexes: List[int],
-        final_h: int = 1280,
-        final_w: int = 960,
+        final_h: int = 1600,
+        final_w: int = 1200,
         heatmap_h: int = 40,
         heatmap_w: int = 30,
         discard_ratio: float = 0.99,
